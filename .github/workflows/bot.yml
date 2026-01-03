@@ -1,26 +1,28 @@
 name: Instagram Reels Bot (Free)
 
-concurrency:
-  group: instagram-reels-bot
-  cancel-in-progress: true
-
 on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write   # 🔥 REQUIRED for uploaded.txt & daily_log.txt
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - run: pip install requests
+      - name: Install dependencies
+        run: pip install requests
 
       - name: Run Instagram Bot
         env:
@@ -29,4 +31,4 @@ jobs:
           CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: python Love_Lofi.py
+        run: python main.py
