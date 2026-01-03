@@ -31,4 +31,4 @@ jobs:
           CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: python main.py
+        run: python Love_Lofi.py
