@@ -4,23 +4,21 @@ import time
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
-# ================== ENV VARIABLES ==================
+# ========= ENV =========
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 IG_USER_ID = os.getenv("IG_USER_ID")
-
 CLOUD_NAME = os.getenv("CLOUD_NAME")
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 
 if not all([ACCESS_TOKEN, IG_USER_ID, CLOUD_NAME, API_KEY, API_SECRET]):
-    raise Exception("❌ Missing environment variables. Check GitHub Secrets.")
+    raise Exception("❌ Missing environment variables")
 
-# ================== CONFIG ==================
+# ========= CONFIG =========
 CAPTION = "❤️ Follow for more reels #lofi #love"
-POST_TIMES = ["10:00", "18:00"]   # daily post times
+POST_TIMES = ["10:00", "18:00"]
 UPLOAD_LOG = "uploaded.txt"
-FORCE_MODE = False
-# ============================================
+# ========================
 
 
 def get_uploaded():
@@ -36,13 +34,9 @@ def mark_uploaded(pid):
 
 def list_cloudinary_videos():
     url = f"https://api.cloudinary.com/v1_1/{CLOUD_NAME}/resources/video"
-    params = {
-        "type": "upload",
-        "max_results": 500
-    }
     r = requests.get(
         url,
-        params=params,
+        params={"type": "upload", "max_results": 500},
         auth=HTTPBasicAuth(API_KEY, API_SECRET)
     )
     r.raise_for_status()
@@ -50,9 +44,6 @@ def list_cloudinary_videos():
 
 
 def is_time_to_post():
-    if FORCE_MODE:
-        return True
-
     now = datetime.now()
     for t in POST_TIMES:
         h, m = map(int, t.split(":"))
@@ -79,8 +70,8 @@ def post_reel(video_url):
 
     creation_id = r["id"]
 
-    for attempt in range(1, 6):
-        print(f"⏳ Publish attempt {attempt} (waiting 30 sec)")
+    for i in range(1, 6):
+        print(f"⏳ Publish attempt {i}")
         time.sleep(30)
 
         p = requests.post(
@@ -92,49 +83,45 @@ def post_reel(video_url):
         ).json()
 
         if "id" in p:
-            print("✅ Posted successfully:", video_url)
+            print("✅ Posted successfully")
             return True
 
-        if "2207027" in str(p) or "not ready" in str(p):
+        if "2207027" in str(p):
             continue
 
         print("❌ Publish failed:", p)
         return False
 
-    print("❌ Publish failed after retries")
     return False
 
 
 print("🚀 Auto Instagram Reels Uploader STARTED")
 
-while True:
-    uploaded = get_uploaded()
-    videos = list_cloudinary_videos()
+uploaded = get_uploaded()
+videos = list_cloudinary_videos()
 
-    print("🎞 Total videos found:", len(videos))
-    print("📂 Already uploaded:", len(uploaded))
+print("🎞 Total videos:", len(videos))
+print("📂 Already uploaded:", len(uploaded))
 
-    posted = 0
+posted = 0
 
-    for v in videos:
-        public_id = v["public_id"]
+for v in videos:
+    pid = v["public_id"]
 
-        if public_id in uploaded:
-            continue
+    if pid in uploaded:
+        continue
 
-        if not is_time_to_post():
-            continue
+    if not is_time_to_post():
+        break
 
-        video_url = f"https://res.cloudinary.com/{CLOUD_NAME}/video/upload/{public_id}.mp4"
-        print("⏫ Trying:", video_url)
+    url = f"https://res.cloudinary.com/{CLOUD_NAME}/video/upload/{pid}.mp4"
+    print("⏫ Trying:", url)
 
-        if post_reel(video_url):
-            mark_uploaded(public_id)
-            posted += 1
-            time.sleep(120)
+    if post_reel(url):
+        mark_uploaded(pid)
+        posted += 1
 
-        if posted == 2:
-            break
+    if posted == 2:
+        break
 
-    print("⏳ Waiting... next check in 60 sec")
-    time.sleep(60)
+print("✅ Run finished cleanly")
