@@ -5,13 +5,15 @@ from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
 # ================== CONFIG ==================
-import os
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 IG_USER_ID = os.getenv("IG_USER_ID")
 CLOUD_NAME = os.getenv("CLOUD_NAME")
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
+
+if not all([ACCESS_TOKEN, IG_USER_ID, CLOUD_NAME, API_KEY, API_SECRET]):
+    raise Exception("❌ Missing environment variables. Check GitHub Secrets.")
 
 CAPTION = "❤️ Follow for more #reels #love"
 
@@ -140,3 +142,4 @@ while True:
 
     print("⏳ Waiting... next check in 60 sec")
     time.sleep(60)
+
