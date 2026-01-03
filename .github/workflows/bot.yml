@@ -2,7 +2,7 @@ name: Instagram Reels Bot (Free)
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/10 * * * *"   # runs every 10 minutes
   workflow_dispatch:
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
-          CLOUD_NAME: ${{ secrets.CLOUD_NAME }}
         run: python Love_Lofi.py
