@@ -1,4 +1,4 @@
-name: Instagram Reels Bot 
+name: Instagram Reels Bot (Free)
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # 🔥 REQUIRED for uploaded.txt & daily_log.txt
+  contents: write
 
 jobs:
   run-bot:
