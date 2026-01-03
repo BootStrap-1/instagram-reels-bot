@@ -1,8 +1,12 @@
 name: Instagram Reels Bot (Free)
 
+concurrency:
+  group: instagram-reels-bot
+  cancel-in-progress: true
+
 on:
   schedule:
-    - cron: "*/10 * * * *"   # runs every 10 minutes
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,16 +14,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install requests
+      - run: pip install requests
 
       - name: Run Instagram Bot
         env:
