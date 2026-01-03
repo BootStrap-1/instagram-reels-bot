@@ -1,9 +1,11 @@
-import os
+import os, time, random, subprocess
 import requests
-import time
-import random
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from requests.auth import HTTPBasicAuth
+
+# ================= TIME =================
+IST = timezone(timedelta(hours=5, minutes=30))
+POST_WINDOWS = [("10:00", 10), ("18:00", 10)]
 
 # ================= ENV =================
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
@@ -12,143 +14,114 @@ CLOUD_NAME = os.getenv("CLOUD_NAME")
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
 
-if not all([ACCESS_TOKEN, IG_USER_ID, CLOUD_NAME, API_KEY, API_SECRET]):
-    raise Exception("❌ Missing environment variables")
-
-# ================= CONFIG =================
-POST_TIMES = ["10:00", "18:00"]   # India friendly
+# ================= FILES =================
 UPLOAD_LOG = "uploaded.txt"
-# ========================================
+DAILY_LOG = "daily_log.txt"
 
-
-# ========= CAPTION + HASHTAG ROTATION =========
+# ================= CAPTION =================
 CAPTIONS = [
-    "❤️ Late night lofi vibes",
-    "🎧 Headphones recommended",
-    "💭 Some songs hit different",
-    "🌙 Night + music = peace",
-    "🖤 Lofi for broken hearts",
-    "✨ Relatable feels only",
-    "🎶 Loop this vibe",
-    "💔 Silent emotions, loud music"
+    "🎧 Lofi hits different at night",
+    "🖤 Relatable vibes only",
+    "🌙 Headphones on, world off",
 ]
+HASHTAGS = ["#lofi", "#reels", "#sad", "#vibes", "#music"]
 
-HASHTAGS = [
-    "#lofi", "#lofivibes", "#sadreels", "#musicreels",
-    "#aestheticreels", "#nightvibes", "#relatable",
-    "#emotional", "#chillvibes"
-]
+def caption():
+    return f"{random.choice(CAPTIONS)}\n\n{' '.join(random.sample(HASHTAGS,3))}"
 
-def get_caption():
-    caption = random.choice(CAPTIONS)
-    tags = " ".join(random.sample(HASHTAGS, 4))  # only 4 = SAFE
-    return f"{caption}\n\n{tags}"
-
-
-# ================= UTILS =================
-def get_uploaded():
-    if not os.path.exists(UPLOAD_LOG):
+# ================= HELPERS =================
+def read_file(path):
+    if not os.path.exists(path):
         return set()
-    return set(open(UPLOAD_LOG).read().splitlines())
+    return set(open(path, encoding="utf-8").read().splitlines())
 
+def write_file(path, line):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
 
-def mark_uploaded(pid):
-    with open(UPLOAD_LOG, "a") as f:
-        f.write(pid + "\n")
+def today():
+    return datetime.now(IST).strftime("%Y-%m-%d")
 
+# ================= TIME CHECK =================
+def check_window():
+    now = datetime.now(IST)
+    logs = read_file(DAILY_LOG)
 
-def list_cloudinary_videos():
-    url = f"https://api.cloudinary.com/v1_1/{CLOUD_NAME}/resources/video"
+    for t, w in POST_WINDOWS:
+        h, m = map(int, t.split(":"))
+        target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        diff = abs((now - target).total_seconds()) / 60
+        key = f"{today()}|{t}"
+
+        if diff <= w:
+            if key in logs:
+                return False, None
+            return True, t
+    return False, None
+
+# ================= CLOUDINARY =================
+def get_videos():
     r = requests.get(
-        url,
-        params={"type": "upload", "max_results": 500},
+        f"https://api.cloudinary.com/v1_1/{CLOUD_NAME}/resources/video",
+        params={"type": "upload", "tag": "reels", "max_results": 500},
         auth=HTTPBasicAuth(API_KEY, API_SECRET)
     )
     r.raise_for_status()
     return r.json()["resources"]
 
-
-def is_time_to_post():
-    now = datetime.now()
-    for t in POST_TIMES:
-        h, m = map(int, t.split(":"))
-        scheduled = now.replace(hour=h, minute=m, second=0, microsecond=0)
-        if abs((now - scheduled).total_seconds()) <= 300:  # ±5 min window
-            return True
-    return False
-
-
-def post_reel(video_url):
+# ================= INSTAGRAM =================
+def upload(video):
     r = requests.post(
         f"https://graph.facebook.com/v19.0/{IG_USER_ID}/media",
         data={
             "media_type": "REELS",
-            "video_url": video_url,
-            "caption": get_caption(),
+            "video_url": video,
+            "caption": caption(),
             "access_token": ACCESS_TOKEN
         }
     ).json()
 
     if "id" not in r:
-        print("❌ Create failed:", r)
         return False
 
-    creation_id = r["id"]
+    cid = r["id"]
+    time.sleep(30)
 
-    for i in range(1, 6):
-        print(f"⏳ Publish attempt {i}")
-        time.sleep(30)
+    pub = requests.post(
+        f"https://graph.facebook.com/v19.0/{IG_USER_ID}/media_publish",
+        data={"creation_id": cid, "access_token": ACCESS_TOKEN}
+    ).json()
 
-        p = requests.post(
-            f"https://graph.facebook.com/v19.0/{IG_USER_ID}/media_publish",
-            data={
-                "creation_id": creation_id,
-                "access_token": ACCESS_TOKEN
-            }
-        ).json()
+    return "id" in pub
 
-        if "id" in p:
-            print("✅ Posted successfully")
-            return True
-
-        if "2207027" in str(p):  # media not ready
-            continue
-
-        print("❌ Publish failed:", p)
-        return False
-
-    return False
-
+# ================= GIT COMMIT =================
+def git_commit():
+    subprocess.run(["git", "config", "user.name", "github-actions"])
+    subprocess.run(["git", "config", "user.email", "actions@github.com"])
+    subprocess.run(["git", "add", UPLOAD_LOG, DAILY_LOG])
+    subprocess.run(["git", "commit", "-m", "update upload logs"], check=False)
+    subprocess.run(["git", "push"], check=False)
 
 # ================= MAIN =================
-print("🚀 Auto Instagram Reels Uploader STARTED")
+print("🚀 BOT STARTED")
 
-uploaded = get_uploaded()
-videos = list_cloudinary_videos()
+allow, window = check_window()
+if not allow:
+    print("⏳ Not allowed now")
+    exit()
 
-print("🎞 Total videos:", len(videos))
-print("📂 Already uploaded:", len(uploaded))
-
-posted = 0
+uploaded = read_file(UPLOAD_LOG)
+videos = get_videos()
 
 for v in videos:
-    pid = v["public_id"]
-
-    if pid in uploaded:
+    url = v["secure_url"]
+    if url in uploaded:
         continue
 
-    if not is_time_to_post():
-        break
+    if upload(url):
+        write_file(UPLOAD_LOG, url)
+        write_file(DAILY_LOG, f"{today()}|{window}")
+        git_commit()
+    break
 
-    video_url = f"https://res.cloudinary.com/{CLOUD_NAME}/video/upload/{pid}.mp4"
-    print("⏫ Trying:", video_url)
-
-    if post_reel(video_url):
-        mark_uploaded(pid)
-        posted += 1
-        time.sleep(60)
-
-    if posted == 2:  # max 2 reels/day (SAFE)
-        break
-
-print("✅ Run finished cleanly")
+print("✅ DONE")
