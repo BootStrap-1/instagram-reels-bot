@@ -1,13 +1,13 @@
+import os
 import requests
 import time
-import os
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
-# ================== CONFIG ==================
-
+# ================== ENV VARIABLES ==================
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 IG_USER_ID = os.getenv("IG_USER_ID")
+
 CLOUD_NAME = os.getenv("CLOUD_NAME")
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
@@ -15,12 +15,11 @@ API_SECRET = os.getenv("API_SECRET")
 if not all([ACCESS_TOKEN, IG_USER_ID, CLOUD_NAME, API_KEY, API_SECRET]):
     raise Exception("❌ Missing environment variables. Check GitHub Secrets.")
 
-CAPTION = "❤️ Follow for more #reels #love"
-
-POST_TIMES = ["10:00", "18:00"]   # daily times (HH:MM)
+# ================== CONFIG ==================
+CAPTION = "❤️ Follow for more reels #lofi #love"
+POST_TIMES = ["10:00", "18:00"]   # daily post times
 UPLOAD_LOG = "uploaded.txt"
-
-FORCE_MODE = False   # 👉 FIRST RUN = True, AFTER SUCCESS = False
+FORCE_MODE = False
 # ============================================
 
 
@@ -58,13 +57,12 @@ def is_time_to_post():
     for t in POST_TIMES:
         h, m = map(int, t.split(":"))
         scheduled = now.replace(hour=h, minute=m, second=0, microsecond=0)
-        if abs((now - scheduled).total_seconds()) <= 300:  # 5 min window
+        if abs((now - scheduled).total_seconds()) <= 300:
             return True
     return False
 
 
 def post_reel(video_url):
-    # STEP 1: Create container
     r = requests.post(
         f"https://graph.facebook.com/v19.0/{IG_USER_ID}/media",
         data={
@@ -81,7 +79,6 @@ def post_reel(video_url):
 
     creation_id = r["id"]
 
-    # STEP 2: Publish with retries
     for attempt in range(1, 6):
         print(f"⏳ Publish attempt {attempt} (waiting 30 sec)")
         time.sleep(30)
@@ -98,7 +95,6 @@ def post_reel(video_url):
             print("✅ Posted successfully:", video_url)
             return True
 
-        # retry only if media not ready
         if "2207027" in str(p) or "not ready" in str(p):
             continue
 
@@ -137,9 +133,8 @@ while True:
             posted += 1
             time.sleep(120)
 
-        if FORCE_MODE or posted == 2:
+        if posted == 2:
             break
 
     print("⏳ Waiting... next check in 60 sec")
     time.sleep(60)
-
