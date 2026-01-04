@@ -5,7 +5,7 @@ from requests.auth import HTTPBasicAuth
 
 # ================= TIME =================
 IST = timezone(timedelta(hours=5, minutes=30))
-POST_WINDOWS = [("10:00", 10), ("18:00", 10)]
+POST_WINDOWS = [("10:23", 10), ("18:00", 10)]
 
 # ================= ENV =================
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
